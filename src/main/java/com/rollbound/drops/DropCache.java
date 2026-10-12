@@ -508,7 +508,7 @@ public class DropCache
         if (ioExecutor == null || ioExecutor.isShutdown() || ioExecutor.isTerminated())
         {
             ioExecutor = Executors.newFixedThreadPool(
-                    Math.max(2, Runtime.getRuntime().availableProcessors() / 2),
+                    2,
                     new ThreadFactoryBuilder().setNameFormat("rollbound-dropcache-%d").setDaemon(true).build());
         }
         return ioExecutor;
