@@ -1,0 +1,410 @@
+package com.rollbound.menus;
+
+import com.rollbound.RollBoundConfig;
+import com.rollbound.RollBoundPlugin;
+import com.rollbound.filters.EnsouledHeadMapping;
+import com.rollbound.filters.ItemSets;
+import com.rollbound.firebase.FirebaseSyncService;
+import com.rollbound.managers.RolledItemsManager;
+import net.runelite.api.GameState;
+import net.runelite.api.MenuAction;
+import net.runelite.api.MenuEntry;
+import net.runelite.api.Client;
+import net.runelite.api.Item;
+import net.runelite.api.ItemContainer;
+import net.runelite.api.WorldType;
+import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.WidgetClosed;
+import net.runelite.api.events.WidgetLoaded;
+import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.VarbitID;
+import net.runelite.api.gameval.InventoryID;
+import net.runelite.client.eventbus.EventBus;
+import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.game.ItemManager;
+import net.runelite.client.util.Text;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Consumer;
+
+@Singleton
+public class ActionHandler {
+
+	private static final Set<MenuAction> disabledActions = EnumSet.of(
+			MenuAction.CC_OP,               // inventory “Use” on locked
+			MenuAction.WIDGET_TARGET,       // “Use” on widgets
+			MenuAction.WIDGET_TARGET_ON_WIDGET  // “Use” on widget -> widget
+	);
+
+	private static final Set<MenuAction> GROUND_ACTIONS = EnumSet.of(
+			MenuAction.GROUND_ITEM_FIRST_OPTION,
+			MenuAction.GROUND_ITEM_SECOND_OPTION,
+			MenuAction.GROUND_ITEM_THIRD_OPTION,
+			MenuAction.GROUND_ITEM_FOURTH_OPTION,
+			MenuAction.GROUND_ITEM_FIFTH_OPTION
+	);
+
+	private static final Set<Integer> ALWAYS_ALLOW_OBJECT_IDS = new HashSet<>();
+
+	private static final EnumSet<MenuAction> GAME_OBJECT_ACTIONS = EnumSet.of(
+			MenuAction.GAME_OBJECT_FIRST_OPTION,
+			MenuAction.GAME_OBJECT_SECOND_OPTION,
+			MenuAction.GAME_OBJECT_THIRD_OPTION,
+			MenuAction.GAME_OBJECT_FOURTH_OPTION,
+			MenuAction.GAME_OBJECT_FIFTH_OPTION
+	);
+
+	static
+	{
+		ALWAYS_ALLOW_OBJECT_IDS.add(net.runelite.api.gameval.ObjectID.CATABOW);
+	}
+
+	private static final int ORBS_GROUP = (InterfaceID.Orbs.UNIVERSE >>> 16);
+
+	/**
+	 * Normalize a MenuEntryAdded into the base item ID.
+	 */
+	private int getItemId(MenuEntryAdded event, MenuEntry entry) {
+		MenuAction type = entry.getType();
+		boolean hasItemId = entry.getItemId() > 0 || event.getItemId() > 0;
+		if (!GROUND_ACTIONS.contains(type) && !hasItemId) {
+			return -1;
+		}
+		int raw = GROUND_ACTIONS.contains(type)
+				? event.getIdentifier()
+				: Math.max(event.getItemId(), entry.getItemId());
+		int mapped = EnsouledHeadMapping.toTradeableId(raw);
+		return plugin.getItemManager().canonicalize(mapped);
+	}
+
+	private final HashSet<Integer> enabledUIs = new HashSet<>() {{
+		for (EnabledUI ui : EnabledUI.values()) add(ui.getId());
+	}};
+
+	@Inject
+	private Client client;
+	@Inject
+	private EventBus eventBus;
+	@Inject
+	private RollBoundConfig config;
+	@Inject
+	private RollBoundPlugin plugin;
+	@Inject
+	private Restrictions restrictions;
+	@Inject
+	private RolledItemsManager rolledItemsManager;
+	@Inject
+	private FirebaseSyncService firebaseSyncService;
+	private int enabledUIOpen = -1;
+
+	// A no-op click handler that marks a menu entry as disabled.
+	private final Consumer<MenuEntry> DISABLED = e -> { };
+
+	public void startUp() {
+		eventBus.register(this);
+		eventBus.register(restrictions);
+	}
+
+	public void shutDown() {
+		eventBus.unregister(this);
+		eventBus.unregister(restrictions);
+	}
+
+	private boolean enabledUiOpen() {
+		return enabledUIOpen != -1;
+	}
+
+	private EnabledUI currentEnabledUi()
+	{
+		return enabledUIOpen == -1 ? null : EnabledUI.fromGroupId(enabledUIOpen);
+	}
+
+	private boolean inactive() {
+		if (!plugin.isCurrentAccountEnabledForRollBound()) return true;
+		if (firebaseSyncService.getStatus() != FirebaseSyncService.Status.CONNECTED) return true;
+		if (isPvpContext()) return true;
+		return client.getGameState().getState() < GameState.LOADING.getState();
+	}
+
+	/**
+	 * RollBound never alters menu entries in PvP contexts. This deliberately fails open so
+	 * item/spell restrictions cannot remove or deprioritise combat options in PvP.
+	 */
+	private boolean isPvpContext()
+	{
+		EnumSet<WorldType> worldTypes = client.getWorldType();
+		if (WorldType.isPvpWorld(worldTypes)
+				|| worldTypes.contains(WorldType.BOUNTY)
+				|| worldTypes.contains(WorldType.HIGH_RISK)
+				|| worldTypes.contains(WorldType.LAST_MAN_STANDING)
+				|| worldTypes.contains(WorldType.PVP_ARENA))
+		{
+			return true;
+		}
+
+		return client.getVarbitValue(VarbitID.INSIDE_WILDERNESS) > 0;
+	}
+
+	@Subscribe
+	public void onWidgetClosed(WidgetClosed event) {
+		if (event.getGroupId() == enabledUIOpen) enabledUIOpen = -1;
+	}
+
+	@Subscribe
+	public void onWidgetLoaded(WidgetLoaded event) {
+		if (enabledUIs.contains(event.getGroupId()))
+			enabledUIOpen = event.getGroupId();
+	}
+
+	@Subscribe
+	public void onMenuEntryAdded(MenuEntryAdded event) {
+		if (inactive()) return;
+
+		EnabledUI ui = currentEnabledUi();
+		if (ui != null && !ui.isGreyLockedItems())
+		{
+			return;
+		}
+
+		MenuEntry entry = event.getMenuEntry();
+		MenuAction action = entry.getType();
+		int id = getItemId(event, entry);
+		boolean enabled;
+		// Check if the entry looks like it's for a ground item.
+		if (isGroundItem(entry)) {
+			enabled = !isLockedGroundItem(id);
+		} else {
+			enabled = isEnabled(id, entry, action);
+		}
+		// If not enabled, grey out the text and set the click handler to DISABLED.
+		if (!enabled) {
+			String option = Text.removeTags(entry.getOption());
+			String target = Text.removeTags(entry.getTarget());
+			entry.setOption("<col=808080>" + option);
+			entry.setTarget("<col=808080>" + target);
+			entry.onClick(DISABLED);
+			if (config.deprioritizeLockedOptions()) {
+				entry.setDeprioritized(true);
+			}
+		}
+	}
+
+	@Subscribe
+	public void onMenuOptionClicked(MenuOptionClicked event) {
+		if (inactive()) return;
+
+		MenuEntry entry = event.getMenuEntry();
+		int rawItemId = entry.getItemId();
+		int canonicalItemId = rawItemId > 0
+				? plugin.getItemManager().canonicalize(EnsouledHeadMapping.toTradeableId(rawItemId))
+				: -1;
+		if (isItemSetCreationAction(canonicalItemId, entry))
+		{
+			event.consume();
+			return;
+		}
+
+		// If the entry is disabled, consume the event.
+		if (event.getMenuEntry().onClick() == DISABLED) {
+			event.consume();
+			return;
+		}
+		// Extra safeguard for ground items.
+		handleGroundItems(plugin.getItemManager(), rolledItemsManager, event, plugin);
+	}
+
+	/**
+	 * Returns true if the entry appears to be for a ground item.
+	 */
+	private boolean isGroundItem(MenuEntry entry)
+	{
+		return GROUND_ACTIONS.contains(entry.getType());
+	}
+
+	/**
+	 * @param itemId canonicalized item ID of a ground item
+	 * @return true if it’s tradeable, tracked, and still locked
+	 */
+	private boolean isLockedGroundItem(int itemId)
+	{
+		return plugin.isGeTradeable(itemId)
+				&& !plugin.isNotTracked(itemId)
+				&& !rolledItemsManager.isRolled(itemId);
+	}
+
+	private boolean isItemSetCreationAction(int id, MenuEntry entry)
+	{
+		String option = Text.removeTags(entry.getOption());
+		boolean exchangeAction = "exchange".equalsIgnoreCase(option)
+				|| "pack".equalsIgnoreCase(option)
+				|| "make-set".equalsIgnoreCase(option)
+				|| "create-set".equalsIgnoreCase(option);
+		if (!exchangeAction)
+		{
+			return false;
+		}
+
+		// Only block packing from the Grand Exchange Item Sets list. The side inventory
+		// uses a separate interface, so existing set boxes can still be unpacked.
+		int widgetGroup = entry.getParam1() >>> 16;
+		int itemSetsGroup = InterfaceID.Itemsets.UNIVERSE >>> 16;
+		if (widgetGroup != itemSetsGroup)
+		{
+			return false;
+		}
+
+		if (ItemSets.isItemSet(id))
+		{
+			return true;
+		}
+
+		String target = Text.removeTags(entry.getTarget());
+		if (target == null || target.isEmpty())
+		{
+			return false;
+		}
+
+		String normalizedTarget = target.toLowerCase(java.util.Locale.ROOT);
+		for (int itemSetId : ItemSets.getAllItemSetIds())
+		{
+			String itemSetName = plugin.getItemManager().getItemComposition(itemSetId).getName();
+			if (itemSetName != null && !itemSetName.isEmpty()
+					&& normalizedTarget.contains(itemSetName.toLowerCase(java.util.Locale.ROOT)))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private boolean isHealthOrbCure(MenuEntry entry)
+	{
+		if (entry.getType() != MenuAction.CC_OP)
+			return false;
+
+		if (!"cure".equalsIgnoreCase(Text.removeTags(entry.getOption())))
+			return false;
+
+		int w1 = entry.getParam1();
+		int w0 = entry.getParam0();
+
+		return (w1 >>> 16) == ORBS_GROUP || (w0 >>> 16) == ORBS_GROUP;
+	}
+
+	/**
+	 * This method handles non-ground items (or any other cases) by checking if the item is enabled.
+	 * It returns true if the action should be allowed.
+	 */
+	private boolean isEnabled(int id, MenuEntry entry, MenuAction action) {
+		if (isItemSetCreationAction(id, entry))
+		{
+			return false;
+		}
+
+		if (isHealthOrbCure(entry))
+		{
+			return true;
+		}
+
+		String option = Text.removeTags(entry.getOption());
+		String target = Text.removeTags(entry.getTarget());
+
+		EnabledUI ui = currentEnabledUi();
+		if (ui != null && ui.isAllowAllActions())
+		{
+			return true;
+		}
+
+		// Allowlisted world objects bypass all restrictions
+		if (GAME_OBJECT_ACTIONS.contains(action) && ALWAYS_ALLOW_OBJECT_IDS.contains(entry.getIdentifier()))
+		{
+			return true;
+		}
+
+		// Always allow "Drop" / "Check"
+		if (option.equalsIgnoreCase("drop") || option.equalsIgnoreCase("check"))
+			return true;
+		if (option.equalsIgnoreCase("clean") || option.equalsIgnoreCase("rub"))
+		{
+			if (!plugin.isInPlay(id)) { return true; }
+			return rolledItemsManager.isRolled(id);
+		}
+		if ("harpoon".equalsIgnoreCase(option)
+				&& !hasAnyHarpoonInInvOrWorn())
+		{
+			String t = target.toLowerCase();
+			if (t.contains("fishing spot") || t.contains("spirit pool"))
+				return true;
+		}
+		if (SkillOp.isSkillOp(option))
+			return restrictions.isSkillOpEnabled(option);
+		if (Spell.isSpell(option))
+			return restrictions.isSpellOpEnabled(option);
+		if (Spell.isSpell(target))
+			return restrictions.isSpellOpEnabled(target);
+
+		boolean enabled = !disabledActions.contains(action);
+		if (enabled)
+			return true;
+		if (id == 0 || id == -1 || !plugin.isInPlay(id))
+			return true;
+		return rolledItemsManager.isRolled(id);
+	}
+
+	/**
+	 * A static helper to further safeguard ground item actions.
+	 * If a ground item is locked, this method consumes the event.
+	 */
+	public static void handleGroundItems(ItemManager itemManager, RolledItemsManager rolledItemsManager,
+										 MenuOptionClicked event, RollBoundPlugin plugin) {
+		if (event.getMenuAction() != null && GROUND_ACTIONS.contains(event.getMenuAction())) {
+			int rawItemId = event.getId() != -1
+					? event.getId()
+					: event.getMenuEntry().getItemId();
+			int mapped = EnsouledHeadMapping.toTradeableId(rawItemId);
+			int canonicalGroundId = itemManager.canonicalize(mapped);
+			if (plugin.isGeTradeable(canonicalGroundId)
+					&& !plugin.isNotTracked(canonicalGroundId)
+					&& rolledItemsManager != null
+					&& !rolledItemsManager.isRolled(canonicalGroundId)) {
+				event.consume();
+			}
+		}
+	}
+
+	/**
+	 Checks for harpoon in inventory and worn items for
+	 barbarian fishing.
+	 **/
+	private boolean hasAnyHarpoonInInvOrWorn()
+	{
+		ItemContainer worn = client.getItemContainer(InventoryID.WORN);
+		ItemContainer inv  = client.getItemContainer(InventoryID.INV);
+
+		if (worn != null)
+		{
+			for (Item item : worn.getItems())
+			{
+				SkillItem si = SkillItem.fromId(item.getId());
+				if (si != null && si.getSkillOp() == SkillOp.HARPOON) return true;
+			}
+		}
+
+		if (inv != null)
+		{
+			for (Item item : inv.getItems())
+			{
+				SkillItem si = SkillItem.fromId(item.getId());
+				if (si != null && si.getSkillOp() == SkillOp.HARPOON) return true;
+			}
+		}
+
+		return false;
+	}
+}
