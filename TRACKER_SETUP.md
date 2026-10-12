@@ -1,31 +1,36 @@
-# RollBound Tracker setup
+# RollBound Tracker
 
-RollBound can optionally publish live player progression to the same Firebase Realtime Database used for group unlocks.
+The RollBound Tracker provides a live web view of group progression.
 
-## RuneLite
+**Open the tracker:** https://rollbound-tracker.vercel.app/
 
-1. Use the same **Firebase database URL** on every RollBound client.
-2. **Live web tracker data is disabled by default.** Explicitly enable it only for players who want their progression shown on the tracker.
-3. Log in. RollBound publishes the initial snapshot and debounces relevant skill/var changes.
-4. A lightweight keepalive updates presence periodically. Logging out, hopping or disabling RollBound marks the player offline best-effort.
+## Setup
 
-## Website
+1. Configure RollBound with your group's Firebase database URL using the [Firebase setup guide](FIREBASE_SETUP.md).
+2. In RuneLite, enable **Live web tracker data** for each player who wants their progression shown.
+3. Open https://rollbound-tracker.vercel.app/.
+4. Open **Connection** on the tracker and enter the same Firebase database URL.
 
-Open the companion RollBound tracker, open **Connection**, and use the same Firebase Realtime Database URL. The browser listens to Firebase's REST/SSE endpoints directly.
+The tracker updates from Firebase as RollBound progression changes.
 
-## Firebase paths added by the tracker
+## Data shared when enabled
 
-```text
-/players/{playerKey}
-/trackerSources/npcs/{npcId}
-```
+**Live web tracker data is disabled by default.**
 
-Existing RollBound data remains under `/obtainedItems`, `/rolledItems`, `/rolledBy`, `/rollHistory`, `/liveRolls` and `/gameRules`.
+When a player enables it, RollBound may publish:
 
-## Data sent when enabled
+- RuneScape display name and account type
+- Skill levels
+- Quest progress
+- Achievement diary progress
+- Combat achievement progress
+- Slayer progression
+- Barbarian Training progress
+- Hunter Guild rumour progress
+- Online status
 
-A player snapshot contains display name, account type, real skill levels, quest states and quest points, achievement diary tier bitfields, combat-achievement progress, Slayer progression, Barbarian Training state and the Hunter Guild rumour count observed by RuneLite.
+RollBound does not upload the raw RuneScape account hash. A group-specific pseudonymous player key is generated locally instead.
 
-The raw account hash is not uploaded. It is combined with the Firebase URL locally and hashed to make the Firebase player key.
+NPC drop information already cached by RollBound may also be shared with the tracker so it can display item sources.
 
-NPC drop tables already cached by RollBound may also be published while tracker telemetry is enabled so the website can use them as source data.
+Disabling **Live web tracker data** stops player progression telemetry. Core RollBound group progression still uses Firebase because it is required for shared rolls and unlocks.

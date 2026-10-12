@@ -1,18 +1,18 @@
-# Firebase Realtime Database setup for RollBound
+# Firebase setup
 
-This is intentionally similar to the setup used by Bronzeman Unleashed: each RollBound group owns a Firebase Realtime Database and shares its database URL between trusted members.
+RollBound uses a Firebase Realtime Database to synchronise progression between group members.
 
 ## 1. Create a Firebase project
 
-Go to the Firebase Console and create a new project. A random/hard-to-guess project name is recommended if you intend to use the simple URL-as-secret rules below.
+Open the [Firebase Console](https://console.firebase.google.com/) and create a new project.
 
 ## 2. Create a Realtime Database
 
-Open **Build → Realtime Database → Create Database** and choose a region close to your group.
+In the Firebase project, open **Build → Realtime Database → Create Database** and choose a region close to your group.
 
-## 3. Set the rules
+## 3. Set the database rules
 
-For a private trusted group, the simplest configuration is the included [`firebase-rules.json`](firebase-rules.json):
+For a private trusted group, RollBound includes a simple `firebase-rules.json` file:
 
 ```json
 {
@@ -23,52 +23,53 @@ For a private trusted group, the simplest configuration is the included [`fireba
 }
 ```
 
-Paste those rules into the **Rules** tab and publish them.
+Paste these rules into the Firebase Realtime Database **Rules** tab and publish them.
 
-**Important:** these rules mean anyone who knows the database URL can read or modify the RollBound data. Treat the URL like an invite secret and only share it with trusted group members.
+> **Important:** anyone who knows your database URL can read or modify the data when using these rules. Treat the URL like an invite secret and only share it with trusted group members.
 
 ## 4. Copy the database URL
 
-In the Realtime Database **Data** tab, copy the database URL. It will look similar to one of these:
+Open the Realtime Database **Data** tab and copy the database URL. It will look similar to:
 
 ```text
 https://your-project-default-rtdb.firebaseio.com/
+```
+
+or:
+
+```text
 https://your-database.europe-west1.firebasedatabase.app/
 ```
 
-## 5. Configure RollBound
+## 5. Connect RollBound
 
 On every group member's RuneLite client:
 
-1. Open RollBound settings.
+1. Open **RollBound settings**.
 2. Paste the URL into **Firebase database URL**.
 3. Open the RollBound side panel.
 4. Wait for **Firebase: Connected ✓** before making rolls.
 
-No API key, service-account key, Party code or shared Dropbox folder is required.
+No API key or service-account key is required.
 
-## Shared game rules
+## Shared settings
 
-**GE Requires Obtained and Rolled** is the remaining shared gameplay setting stored in Firebase. When one connected player changes it, Firebase pushes the change to the other clients and their RuneLite settings update automatically.
+**GE Requires Obtained and Rolled** is shared through Firebase. Changing it on one connected client updates the group setting.
 
-RollBound's core roll-pool rules are fixed: item-set boxes and flatpacks are excluded, F2P mode is disabled, the old F2P trade-only override is unused, and poisoned weapon variants do not require a separate weapon-poison unlock. Legacy Firebase keys for those removed settings are kept false for compatibility with older clients but are ignored by current clients.
+RollBound's main roll-pool rules are fixed: item-set boxes and flatpacks are excluded, F2P mode is disabled, and poisoned weapon variants do not require a separate poison unlock.
 
 Display, sound and convenience settings remain local to each client.
 
-## Resetting a test database
+## Resetting the group
 
-To start again, use the Firebase Realtime Database **Data** tab and delete the root data. Keep the database itself and its rules. Once clients reconnect, RollBound will load the empty state.
+To start again, open the Firebase Realtime Database **Data** tab and delete the root data. Keep the database and its rules in place, then reconnect the RollBound clients.
 
+## Live tracker
 
-## Moving from the Dropbox build
+The companion tracker is available at:
 
-This Firebase build does **not** read or write the old Dropbox/shared-folder files. That is intentional so an old client cannot race the new database. Existing Dropbox progress is not imported automatically; keep a copy of the old JSON files until you have confirmed the Firebase group is working.
+**https://rollbound-tracker.vercel.app/**
 
+It connects to the same Firebase database URL. Player progression sharing is optional and disabled by default.
 
-## Live tracker data
-
-RollBound includes an optional **Live web tracker data** setting. It is **disabled by default**. When a player explicitly enables it, that account publishes progression under `/players/{playerKey}` and cached NPC drop tables under `/trackerSources/npcs`.
-
-The player key is a group-specific SHA-256-derived pseudonym. RollBound does not upload the raw RuneScape account hash. The Firebase URL and tracker settings show RuneLite third-party-server warnings describing the information shared.
-
-The companion RollBound Tracker website can connect to the same database URL and receives changes live through Firebase's realtime stream. No manual JSON upload is required.
+See [RollBound Tracker setup](TRACKER_SETUP.md) for details.
