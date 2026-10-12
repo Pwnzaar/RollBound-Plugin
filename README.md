@@ -86,4 +86,6 @@ See [Third-party notices](THIRD_PARTY_NOTICES.md) for attribution and licence in
 
 ## Disclaimer
 
+RollBound is designed to be played by a **Group Ironman (GIM) group** and is not intended for use on standard/main accounts.
+
 RollBound is an unofficial community plugin and is not affiliated with Jagex, RuneLite or the Old School RuneScape Wiki.
