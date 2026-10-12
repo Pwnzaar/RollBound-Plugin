@@ -49,8 +49,8 @@ import java.util.*;
 
 @PluginDescriptor(
         name = "RollBound",
-        description = "RollBound: shared progress and live group rolls via Firebase Realtime Database.",
-        tags = {"rollbound", "roll", "group", "shared", "progression", "lock", "unlock", "multiplayer"},
+        description = "Shared roll-unlock progression created for Group Ironmen, with live group rolls and optional web tracking.",
+        tags = {"rollbound", "roll", "group", "gim", "groupironman", "shared", "progression", "lock", "unlock", "multiplayer"},
         internalName = "rollbound",
         legacyDataDirectory = "Rollbound"
 )
