@@ -598,7 +598,7 @@ private final HashSet<Integer> allTradeableItems = new LinkedHashSet<>();
 
     private void announceChoicePickToChat(String rollerName, int chosenItemId)
     {
-        final String who = (rollerName == null || rollerName.trim().isEmpty()) ? "Someone" : rollerName.trim();
+        final String who = (rollerName == null || rollerName.trim().isEmpty()) ? "Someone" : Text.escapeJagex(rollerName.trim());
         clientThread.invoke(() ->
         {
             String nm = "";
