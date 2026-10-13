@@ -38,6 +38,7 @@ import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.Text;
 import net.runelite.client.util.Filepath;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.config.ConfigManager;
@@ -560,7 +561,7 @@ private final HashSet<Integer> allTradeableItems = new LinkedHashSet<>();
 
     private void announceChoiceRollToChat(String rollerName, java.util.List<Integer> optionIds, int obtainedItemId)
     {
-        final String who = (rollerName == null || rollerName.trim().isEmpty()) ? "Someone" : rollerName.trim();
+        final String who = (rollerName == null || rollerName.trim().isEmpty()) ? "Someone" : Text.escapeJagex(rollerName.trim());
         final java.util.List<Integer> opts = (optionIds == null) ? java.util.Collections.emptyList() : optionIds;
 
         clientThread.invoke(() ->
