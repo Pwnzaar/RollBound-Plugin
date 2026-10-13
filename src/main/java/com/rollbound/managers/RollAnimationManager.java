@@ -9,6 +9,7 @@ import net.runelite.api.ItemComposition;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.util.ColorUtil;
+import net.runelite.client.util.Text;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -492,7 +493,9 @@ public class RollAnimationManager
     
     private void announceRollToChat(String rollerName, int rolledItemId, int obtainedItemId, boolean wasManual)
     {
-        final String who = (rollerName != null && !rollerName.trim().isEmpty()) ? rollerName.trim() : "Someone";
+        final String who = (rollerName == null || rollerName.trim().isEmpty())
+                ? "Someone"
+                : Text.escapeJagex(rollerName.trim());
 
         clientThread.invoke(() ->
         {
