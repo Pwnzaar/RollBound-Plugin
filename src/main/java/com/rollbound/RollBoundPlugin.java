@@ -328,6 +328,7 @@ private final HashSet<Integer> allTradeableItems = new LinkedHashSet<>();
 
         dropsMenuListener.setOnDropsLoaded(null);
         eventBus.unregister(dropsMenuListener);
+        itemDimmerController.setEnabled(false);
         eventBus.unregister(itemDimmerController);
         eventBus.unregister(accountManager);
         getInjector().getInstance(ActionHandler.class).shutDown();
