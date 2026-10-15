@@ -67,7 +67,34 @@ public class RollBoundPanel extends PluginPanel
     private final AccountGuardManager accountGuardManager;
     private final String version;
     private final RollBoundDropsPanel dropsPanel;
-    private final JTabbedPane mainTabs = new JTabbedPane();
+    private final JTabbedPane mainTabs = new JTabbedPane()
+    {
+        @Override
+        public Dimension getPreferredSize()
+        {
+            Dimension preferred = super.getPreferredSize();
+            Component selected = getSelectedComponent();
+            if (selected == null)
+            {
+                return preferred;
+            }
+
+            int tallestTabContent = 0;
+            for (int i = 0; i < getTabCount(); i++)
+            {
+                Component component = getComponentAt(i);
+                if (component != null)
+                {
+                    tallestTabContent = Math.max(tallestTabContent, component.getPreferredSize().height);
+                }
+            }
+
+            int tabChromeHeight = Math.max(0, preferred.height - tallestTabContent);
+            return new Dimension(
+                    preferred.width,
+                    selected.getPreferredSize().height + tabChromeHeight);
+        }
+    };
 
     /** Called when the user clicks Manual Roll - triggers a synced group roll in the plugin. */
     private final Runnable manualGroupRoll;
@@ -184,6 +211,12 @@ public class RollBoundPanel extends PluginPanel
         mainTabs.setFocusable(false);
         mainTabs.addTab("Items", items);
         mainTabs.addTab("Drops", dropsPanel);
+        mainTabs.addChangeListener(e ->
+        {
+            mainTabs.revalidate();
+            revalidate();
+            repaint();
+        });
         add(mainTabs, BorderLayout.CENTER);
 
         // Footer: version label
