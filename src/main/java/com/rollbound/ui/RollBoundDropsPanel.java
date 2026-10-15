@@ -46,7 +46,11 @@ public final class RollBoundDropsPanel extends JPanel
 {
     private static final int GRID_COLUMNS = 4;
     private static final int ICON_SIZE = 32;
-    private static final float UNOBTAINED_ALPHA = 105f / 255f; // Matches Chance Man opacity 150.
+    private static final float UNOBTAINED_ALPHA = 0.28f;
+    private static final Color OBTAINED_BORDER = new Color(74, 170, 92);
+    private static final Color OBTAINED_BACKGROUND = new Color(38, 66, 43);
+    private static final Color UNOBTAINED_BORDER = new Color(70, 70, 70);
+    private static final Color UNOBTAINED_BACKGROUND = new Color(32, 32, 32);
 
     private final DropCache dropCache;
     private final NpcSearchService npcSearchService;
@@ -90,14 +94,20 @@ public final class RollBoundDropsPanel extends JPanel
         search.add(button, BorderLayout.EAST);
 
         statusLabel.setForeground(new Color(220, 220, 220));
-        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 12f));
+        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 13f));
+        statusLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        statusLabel.setAlignmentX(CENTER_ALIGNMENT);
+        statusLabel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
 
         progressBar.setStringPainted(true);
         progressBar.setBorderPainted(false);
         progressBar.setVisible(false);
-        progressBar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 16));
-        progressBar.setPreferredSize(new Dimension(180, 16));
-        progressBar.setFont(progressBar.getFont().deriveFont(Font.PLAIN, 10f));
+        progressBar.setAlignmentX(CENTER_ALIGNMENT);
+        progressBar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
+        progressBar.setPreferredSize(new Dimension(180, 22));
+        progressBar.setFont(progressBar.getFont().deriveFont(Font.BOLD, 13f));
+        progressBar.setForeground(OBTAINED_BORDER);
+        progressBar.setBackground(new Color(45, 45, 45));
 
         JPanel top = new JPanel();
         top.setOpaque(false);
@@ -203,7 +213,7 @@ public final class RollBoundDropsPanel extends JPanel
         {
             title += " (Lvl " + data.getLevel() + ")";
         }
-        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 12f));
+        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 14f));
         statusLabel.setForeground(new Color(220, 220, 220));
         statusLabel.setText(title);
 
@@ -355,9 +365,13 @@ public final class RollBoundDropsPanel extends JPanel
         boolean obtained = obtainedItemsManager.isObtained(item.getItemId());
 
         JPanel cell = new JPanel(new BorderLayout());
-        cell.setOpaque(false);
-        cell.setPreferredSize(new Dimension(42, 40));
-        cell.setMinimumSize(new Dimension(42, 40));
+        cell.setOpaque(true);
+        cell.setBackground(obtained ? OBTAINED_BACKGROUND : UNOBTAINED_BACKGROUND);
+        cell.setBorder(BorderFactory.createLineBorder(
+                obtained ? OBTAINED_BORDER : UNOBTAINED_BORDER,
+                obtained ? 2 : 1));
+        cell.setPreferredSize(new Dimension(44, 42));
+        cell.setMinimumSize(new Dimension(44, 42));
 
         OpacityLabel icon = new OpacityLabel(obtained ? 1f : UNOBTAINED_ALPHA);
         icon.setHorizontalAlignment(SwingConstants.CENTER);
