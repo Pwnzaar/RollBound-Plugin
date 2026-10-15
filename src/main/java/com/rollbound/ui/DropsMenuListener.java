@@ -68,7 +68,7 @@ public class DropsMenuListener
         final String name = target.getName();
         final int level = target.getCombatLevel();
 
-        client.getMenu().createMenuEntry(-1)
+        client.getMenu().createMenuEntry(0)
                 .setOption("Show Drops")
                 .setTarget(attackEntry.getTarget())
                 .setIdentifier(attackEntry.getIdentifier())
