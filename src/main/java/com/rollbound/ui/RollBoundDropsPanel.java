@@ -46,7 +46,7 @@ public final class RollBoundDropsPanel extends JPanel
 {
     private static final int GRID_COLUMNS = 4;
     private static final int ICON_SIZE = 32;
-    private static final float UNOBTAINED_ALPHA = 0.28f;
+    private static final float UNOBTAINED_ALPHA = 0.35f;
     private static final Color OBTAINED_BORDER = new Color(74, 170, 92);
     private static final Color OBTAINED_BACKGROUND = new Color(38, 66, 43);
     private static final Color UNOBTAINED_BORDER = new Color(70, 70, 70);
