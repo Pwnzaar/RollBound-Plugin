@@ -58,7 +58,7 @@ public final class RollBoundDropsPanel extends JPanel
     private final RollBoundConfig config;
 
     private final JTextField searchField = new JTextField();
-    private final JLabel statusLabel = new JLabel("Search for an NPC or right-click an NPC and choose Show Drops.");
+    private final JLabel statusLabel = new JLabel("Search for an NPC");
     private final JProgressBar progressBar = new JProgressBar();
     private final JPanel content = new JPanel();
     private volatile NpcDropData currentData;
@@ -330,10 +330,24 @@ public final class RollBoundDropsPanel extends JPanel
 
     private void addSection(VisibleSection section)
     {
+        if (content.getComponentCount() > 0)
+        {
+            content.add(Box.createVerticalStrut(7));
+
+            JPanel divider = new JPanel();
+            divider.setBackground(new Color(62, 62, 62));
+            divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+            divider.setPreferredSize(new Dimension(1, 1));
+            divider.setAlignmentX(LEFT_ALIGNMENT);
+            content.add(divider);
+
+            content.add(Box.createVerticalStrut(5));
+        }
+
         JLabel heading = new JLabel(section.header);
         heading.setForeground(new Color(205, 205, 205));
         heading.setFont(heading.getFont().deriveFont(Font.BOLD, 11f));
-        heading.setBorder(BorderFactory.createEmptyBorder(9, 2, 4, 2));
+        heading.setBorder(BorderFactory.createEmptyBorder(2, 2, 5, 2));
         heading.setAlignmentX(LEFT_ALIGNMENT);
         content.add(heading);
 
