@@ -15,7 +15,6 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
-import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
@@ -121,14 +120,7 @@ public final class RollBoundDropsPanel extends JPanel
 
         content.setOpaque(false);
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        JScrollPane scroll = new JScrollPane(content,
-                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        scroll.setBorder(null);
-        scroll.getViewport().setOpaque(false);
-        scroll.setOpaque(false);
-        scroll.getVerticalScrollBar().setUnitIncrement(16);
-        add(scroll, BorderLayout.CENTER);
+        add(content, BorderLayout.CENTER);
     }
 
     private void search()
