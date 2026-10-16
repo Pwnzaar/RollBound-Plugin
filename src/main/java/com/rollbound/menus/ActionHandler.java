@@ -343,7 +343,15 @@ public class ActionHandler {
 				return true;
 		}
 		if (SkillOp.isSkillOp(option))
+		{
+			if (SkillOp.fromString(option) == SkillOp.FIRE
+					&& !target.toLowerCase().contains("pottery oven"))
+			{
+				return true;
+			}
+
 			return restrictions.isSkillOpEnabled(option);
+		}
 		if (Spell.isSpell(option))
 			return restrictions.isSpellOpEnabled(option);
 		if (Spell.isSpell(target))
